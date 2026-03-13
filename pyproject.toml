@@ -1,0 +1,22 @@
+[project]
+name = "pythonproject3"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.135.1",
+    "inngest>=0.5.17",
+    "llama-index-core>=0.14.16",
+    "llama-index-readers-file>=0.5.6",
+    "openai>=2.26.0",
+    "python-dotenv>=1.2.2",
+    "qdrant-client>=1.17.0",
+    "requests>=2.32.5",
+    "sentence-transformers>=5.3.0",
+    "sentencepiece>=0.2.1",
+    "streamlit>=1.55.0",
+    "torch>=2.10.0",
+    "transformers>=5.3.0",
+    "uvicorn>=0.41.0",
+]
