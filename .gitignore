@@ -35,3 +35,7 @@ Thumbs.db
 # Qdrant or vector database dumps
 data/
 vectorstore/
+
+# Local vector store
+qdrant_data/
+*.egg-info/

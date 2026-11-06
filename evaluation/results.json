@@ -1,0 +1,17 @@
+{
+  "embedding": "local hashing of character n-grams (lexical, not semantic)",
+  "answerable_questions": 14,
+  "unanswerable_questions": 5,
+  "hit_at_1": 1.0,
+  "hit_at_3": 1.0,
+  "mrr_at_3": 1.0,
+  "answer_contains_expected": 1.0,
+  "wrongly_abstained": 0,
+  "correct_abstentions": 3,
+  "false_answers_on_unanswerable": [
+    "What is the capital of Australia?",
+    "Which programming language is the fastest for games?"
+  ],
+  "questions_answered_incorrectly": [],
+  "caveat": "Synthetic corpus of 4 short documents. The threshold has not been validated on separate data."
+}

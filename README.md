@@ -1,27 +1,108 @@
-# RAG Document Search with Qdrant and FLAN‑T5
+# RAG Document Search
 
-RAG Document Search is a proof‑of‑concept application that ingests PDF documents, indexes them into a vector store and allows you to ask natural‑language questions over their contents. It combines retrieval‑augmented generation (RAG) with a lightweight API server and a simple web interface.
+Ask questions about PDF documents. Answers come with page citations, and the system says it does not
+know when retrieval finds nothing close enough.
 
-Modern large language models aren’t trained on your proprietary data. RAG adds your data to the LLM’s knowledge base so the model can ground its answers in the relevant context. When a question arrives, the system retrieves the most similar chunks from your documents and feeds them to the language model along with the prompt to produce a grounded answer.
+**Status:** small working prototype. It runs locally without any API key or model download. The earlier
+public version imported modules that were empty; this version implements them. It has been tested on a
+small synthetic corpus only, not on real document collections or at scale.
 
-## Features
+## How it works
 
-- **Ingestion pipeline**: Loads PDF files, splits them into chunks and generates embeddings via sentence‑transformers.
-- **Vector database**: Uses Qdrant to store embeddings and perform similarity search.
-- **FastAPI + Inngest**: Provides event‑driven endpoints for ingesting documents and querying them.
-- **FLAN‑T5 model**: Generates answers conditioned on the retrieved context.
-- **Streamlit UI** (coming soon): An easy interface for uploading documents and asking questions.
-
-## Getting Started
-
-1. Install Qdrant (e.g. via Docker) and create a virtual environment.
-2. Copy `.env.example` to `.env` and configure `QDRANT_HOST`, `QDRANT_PORT`, `FLAN_MODEL`, and `EMBEDDING_MODEL`.
-3. Install dependencies from `pyproject.toml`, then start the API server:
-
+```mermaid
+flowchart LR
+  PDF["PDF"] --> LOAD["Extract text per page"]
+  LOAD --> CHUNK["Chunk with overlap"]
+  CHUNK --> EMBED["Embed"]
+  EMBED --> QD[("Qdrant")]
+  Q["Question"] --> QEMBED["Embed"]
+  QEMBED --> QD
+  QD --> GATE{"Score above threshold?"}
+  GATE -->|no| ABSTAIN["I do not know"]
+  GATE -->|yes| ANSWER["Answer + source + page"]
 ```
-uvicorn rag_document_search.api:app --host 0.0.0.0 --port 8000 --reload
+
+| Part | Default | Optional |
+|---|---|---|
+| Embeddings | Local character n-gram hashing. Lexical, not semantic. No download. | `sentence-transformers` (`.[semantic]`) |
+| Vector store | Qdrant embedded mode | Qdrant server through `QDRANT_URL` |
+| Answer | Extractive: sentences from the best chunk, so it cannot invent text | FLAN-T5 generation (`.[generate]`), not evaluated |
+| Service | FastAPI with Inngest functions | Streamlit UI (`.[ui]`) |
+
+Non-Latin text works in the default embeddings. Scanned PDFs need OCR first, and the system reports
+that rather than indexing nothing.
+
+## Setup
+
+Requires Python 3.11 or newer.
+
+```bash
+git clone https://github.com/tahamohmadf19-dev/rag-document-search.git
+cd rag-document-search
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
-4. Ingest a PDF and ask questions by sending POST requests to `/ingest` and `/query`.
+## Use it from Python
 
-See the full project documentation for examples, API usage, proposed directory structure and roadmap.
+```python
+from rag_core import answer_question, ingest_pdf
+from vector_db import QdrantStorage
+
+store = QdrantStorage(location=":memory:")
+ingest_pdf("manual.pdf", store)
+answer = answer_question("How long is the warranty?", store)
+print(answer.text, answer.citations)
+```
+
+## Run the UI
+
+```bash
+pip install -e ".[ui]"
+streamlit run streamlit_app.py
+```
+
+## Run the service
+
+```bash
+uvicorn main:app --port 8000
+npx inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
+```
+
+Then send the `rag/ingest_pdf` event with `{"pdf_path": "...", "source_id": "..."}`, and `rag/query_pdf_ai`
+with `{"question": "...", "top_k": 5}`. The event flow was checked for import and startup only. It has not been
+run against a live Inngest dev server.
+
+## Tests and evaluation
+
+```bash
+python -m pytest
+python evaluation/evaluate.py
+```
+
+The tests use real PDF parsing and Qdrant in embedded mode. The evaluation runs on four short documents
+written for this purpose (three English, one Arabic), with results in
+[evaluation/results.json](evaluation/results.json):
+
+| Measure | Result | Questions |
+|---|---:|---:|
+| Correct document at rank 1 | 100% | 14 |
+| Answer contains the expected fact | 100% | 14 |
+| Correctly abstained on unanswerable questions | 3 of 5 | 5 |
+
+**How to read this:** retrieval is easy on such a small, distinct corpus, so the 100% says little about real
+collections. The useful result is the failure: 2 of 5 unanswerable questions still received an answer,
+because character similarity alone is a weak signal for "not in the documents". Semantic embeddings and a
+threshold validated on separate data are the next steps.
+
+## Limitations
+
+- The default embeddings match wording, not meaning, so paraphrased questions can miss.
+- No reranking, hybrid search, or evaluation on real documents.
+- The abstention threshold has not been validated on separate data.
+- Not deployed, and not load tested.
+
+## Privacy note
+
+Use sample documents you are allowed to process. Do not commit real personal documents to `uploads/`.

@@ -1,10 +1,12 @@
+from typing import List, Optional
+
 import pydantic
-from typing import List
 
 
 class RAGChunkAndSrc(pydantic.BaseModel):
     chunks: List[str]
-    source_id: str = None
+    pages: List[int] = []
+    source_id: Optional[str] = None
 
 
 class RAGUpsertResult(pydantic.BaseModel):
@@ -14,6 +16,7 @@ class RAGUpsertResult(pydantic.BaseModel):
 class RAGSearchResult(pydantic.BaseModel):
     contexts: List[str]
     sources: List[str]
+    scores: List[float] = []
 
 
 class RAGQueryResult(pydantic.BaseModel):
