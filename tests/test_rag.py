@@ -3,7 +3,16 @@ import pytest
 from fpdf import FPDF
 
 from data_loader import chunk_text, embed_texts, load_and_chunk_pdf, load_pdf_chunks
-from rag_core import ABSTAIN_MESSAGE, answer_question, ingest_pdf, ingest_text, retrieve, validate_query
+from rag_core import (
+    ABSTAIN_MESSAGE,
+    MIN_SCORE,
+    answer_question,
+    ingest_pdf,
+    ingest_text,
+    retrieve,
+    term_coverage,
+    validate_query,
+)
 from vector_db import QdrantStorage
 
 
@@ -97,6 +106,29 @@ def test_unrelated_question_abstains(store):
     assert answer_question("How do volcanoes form?", store).abstained
 
 
+@pytest.mark.parametrize(
+    "question",
+    # Both were answered with an unrelated passage before the lexical-support check:
+    # their character n-grams scored above MIN_SCORE against the billing and handbook texts.
+    ["What is the capital of Australia?", "Which programming language is the fastest for games?"],
+)
+def test_lexically_similar_but_unrelated_questions_abstain(store, question):
+    from evaluation.evaluate import CORPUS
+
+    for source, text in CORPUS.items():
+        ingest_text(text, source, store)
+    assert retrieve(question, store)["scores"][0] >= MIN_SCORE  # the score alone would have answered
+    assert answer_question(question, store).abstained
+
+
+def test_term_coverage_counts_question_words_found_in_the_passage():
+    passage = "Unused leave expires at the end of March."
+    assert term_coverage("When does unused leave expire?", passage) == 1.0
+    assert term_coverage("What is the capital of Australia?", passage) == 0.0
+    assert term_coverage("What is it?", passage) == 1.0  # only stopwords: nothing to check
+    assert term_coverage("كم كتابًا يمكن للطالب استعارته؟", "يمكن للطالب استعارة خمسة كتب") >= 0.5
+
+
 def test_answer_text_comes_from_the_document(store):
     source = "The late fee is two percent. Offices close at noon on Fridays. Parking is free."
     ingest_text(source, "doc", store)
@@ -146,3 +178,5 @@ def test_evaluation_runs_and_reports_all_fields():
     assert results["answerable_questions"] == 14 and results["unanswerable_questions"] == 5
     assert 0.0 <= results["hit_at_1"] <= 1.0
     assert "Synthetic" in results["caveat"]
+    assert results["false_answers_on_unanswerable"] == []
+    assert results["questions_answered_incorrectly"] == []

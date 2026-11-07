@@ -7,11 +7,10 @@
   "mrr_at_3": 1.0,
   "answer_contains_expected": 1.0,
   "wrongly_abstained": 0,
-  "correct_abstentions": 3,
-  "false_answers_on_unanswerable": [
-    "What is the capital of Australia?",
-    "Which programming language is the fastest for games?"
-  ],
+  "correct_abstentions": 5,
+  "false_answers_on_unanswerable": [],
   "questions_answered_incorrectly": [],
-  "caveat": "Synthetic corpus of 4 short documents. The threshold has not been validated on separate data."
+  "held_out_answerable_correct": "3 of 4",
+  "held_out_unanswerable_abstained": "4 of 4",
+  "caveat": "Synthetic corpus of 4 short documents. The held-out questions are only 8. The lexical-support check rejects unrelated questions but also rejects paraphrases with little word overlap."
 }

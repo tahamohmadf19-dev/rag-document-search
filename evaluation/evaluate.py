@@ -63,6 +63,23 @@ UNANSWERABLE = [
     "ما هو طول نهر النيل؟",
 ]
 
+# Written before the lexical-support check was implemented, and never used to tune it. They show
+# whether the check generalizes beyond the questions above. The last answerable one is a paraphrase
+# with almost no word overlap, which a lexical check is expected to struggle with.
+HELD_OUT_ANSWERABLE = [
+    ("How long is the probation period for new staff?", "handbook.txt", "three months"),
+    ("When is payment due?", "billing.txt", "thirty days"),
+    ("What encryption must laptops use?", "security.txt", "full disk encryption"),
+    ("ما هي ساعات عمل المكتبة؟", "library_ar.txt", "الثامنة"),
+]
+
+HELD_OUT_UNANSWERABLE = [
+    "How many players are on a football team?",
+    "Who painted the Mona Lisa?",
+    "What is the boiling point of water?",
+    "ما هي عاصمة اليابان؟",
+]
+
 
 def run() -> dict:
     store = QdrantStorage(location=":memory:", collection="evaluation")
@@ -98,6 +115,12 @@ def run() -> dict:
         else:
             false_answers.append(question)
 
+    held_answered = sum(
+        1 for q, _, expected in HELD_OUT_ANSWERABLE
+        if not (a := answer_question(q, store)).abstained and expected in a.text
+    )
+    held_abstained = sum(1 for q in HELD_OUT_UNANSWERABLE if answer_question(q, store).abstained)
+
     store.close()
     count = len(ANSWERABLE)
     return {
@@ -112,7 +135,12 @@ def run() -> dict:
         "correct_abstentions": correct_abstentions,
         "false_answers_on_unanswerable": false_answers,
         "questions_answered_incorrectly": misses,
-        "caveat": "Synthetic corpus of 4 short documents. The threshold has not been validated on separate data.",
+        "held_out_answerable_correct": f"{held_answered} of {len(HELD_OUT_ANSWERABLE)}",
+        "held_out_unanswerable_abstained": f"{held_abstained} of {len(HELD_OUT_UNANSWERABLE)}",
+        "caveat": (
+            "Synthetic corpus of 4 short documents. The held-out questions are only 8. The lexical-support "
+            "check rejects unrelated questions but also rejects paraphrases with little word overlap."
+        ),
     }
 
 

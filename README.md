@@ -19,7 +19,9 @@ flowchart LR
   QEMBED --> QD
   QD --> GATE{"Score above threshold?"}
   GATE -->|no| ABSTAIN["I do not know"]
-  GATE -->|yes| ANSWER["Answer + source + page"]
+  GATE -->|yes| SUPPORT{"Half of the question's words in the passage?"}
+  SUPPORT -->|no| ABSTAIN
+  SUPPORT -->|yes| ANSWER["Answer + source + page"]
 ```
 
 | Part | Default | Optional |
@@ -89,18 +91,26 @@ written for this purpose (three English, one Arabic), with results in
 |---|---:|---:|
 | Correct document at rank 1 | 100% | 14 |
 | Answer contains the expected fact | 100% | 14 |
-| Correctly abstained on unanswerable questions | 3 of 5 | 5 |
+| Correctly abstained on unanswerable questions | 5 of 5 | 5 |
+| Held-out: answered correctly | 3 of 4 | 4 |
+| Held-out: correctly abstained | 4 of 4 | 4 |
 
 **How to read this:** retrieval is easy on such a small, distinct corpus, so the 100% says little about real
-collections. The useful result is the failure: 2 of 5 unanswerable questions still received an answer,
-because character similarity alone is a weak signal for "not in the documents". Semantic embeddings and a
-threshold validated on separate data are the next steps.
+collections.
+
+Earlier, 2 of 5 unanswerable questions received an answer: "What is the capital of Australia?" scored 0.238
+against a billing policy, above the weakest real answer (0.235), through shared letter patterns alone. No
+score threshold separates those. The answer step now also requires at least half of the question's own
+content words to appear in the passage. That rule was fixed before measuring, and then checked on 8 held-out
+questions written in advance. It rejected all 4 unrelated ones, where the score alone rejected 2. It also
+turned away one genuine paraphrase ("library opening hours" against "opens at eight"), which the score alone
+had answered. A lexical check cannot recognise paraphrases; semantic embeddings are the next step.
 
 ## Limitations
 
 - The default embeddings match wording, not meaning, so paraphrased questions can miss.
 - No reranking, hybrid search, or evaluation on real documents.
-- The abstention threshold has not been validated on separate data.
+- Abstention is checked on 8 held-out questions only, not on real documents. Paraphrased questions with few shared words can be refused.
 - Not deployed, and not load tested.
 
 ## Privacy note
